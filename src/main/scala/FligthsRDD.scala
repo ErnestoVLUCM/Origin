@@ -62,11 +62,11 @@ object flightsRDD {
       val origin = flightRow.getAs[String](src)
       val dest = flightRow.getAs[String](dst)
       ((origin, dest), 1)
-    }).rdd.reduceByKey(_ + _).sortBy(_._2, false).take(n)
+    }).rdd.reduceByKey(_ + _).sortBy(_._2, ascending = false).take(n)
   }
 
   def getAiportWithMinimusAvgDestByMonth(flightsDF: DataFrame): RDD[(Int,(String,Double))] = {
-    getAiportWithMaximunOrMinimunAvgDestByMonth(flightsDF, false, dst).sortByKey()
+    getAiportWithMaximunOrMinimunAvgDestByMonth(flightsDF, maximun = false, dst).sortByKey()
   }
   def getAiportWithMmaximusAvgDestByMonth(flightsDF: DataFrame): RDD[(Int,(String,Double))] = {
     getAiportWithMaximunOrMinimunAvgDestByMonth(flightsDF, sourceOrDest = dst).sortByKey()
@@ -74,7 +74,7 @@ object flightsRDD {
 
 
   def getAiportWithMinimusAvgSourceByMonth(flightsDF: DataFrame): RDD[(Int,(String,Double))] = {
-    getAiportWithMaximunOrMinimunAvgDestByMonth(flightsDF, false, src).sortByKey()
+    getAiportWithMaximunOrMinimunAvgDestByMonth(flightsDF, maximun = false, src).sortByKey()
   }
   def getAiportWithMmaximusAvgSourceByMonth(flightsDF: DataFrame): RDD[(Int,(String,Double))] = {
     getAiportWithMaximunOrMinimunAvgDestByMonth(flightsDF, sourceOrDest =  src).sortByKey()
@@ -151,12 +151,12 @@ object flightsRDD {
     getAiportNFlightsInAWeek(flightsDS, n)
   }
   def getMinNFlightsInAWeek(flightsDS: DataFrame, n: Int): ((String, String), Int) = {
-    getAiportNFlightsInAWeek(flightsDS, n, false)
+    getAiportNFlightsInAWeek(flightsDS, n, max =false)
   }
 
   def getAiportNFlightsInAWeek(flightsDF: DataFrame, n: Int, max: Boolean = true): ((String, String), Int) = {
     def getMax(rDD: RDD[((String, String), Int)]): ((String, String), Int) = {
-      rDD.sortByKey(false).first()
+      rDD.sortByKey(ascending = false).first()
     }
     def getMin(rDD: RDD[((String, String), Int)]): ((String, String), Int) = {
       rDD.sortByKey().first()
@@ -165,7 +165,7 @@ object flightsRDD {
     val sqlContext = flightsDF.sqlContext
     import sqlContext.implicits._
     val weekOfYear = (year:Int, month:Int, day:Int) => new DateTime().year.setCopy(year).monthOfYear.setCopy(month).dayOfMonth.setCopy(day).weekOfWeekyear.get
-    val weekOfYearUDF = sparkSession.udf.register("weekOfYear", weekOfYear) // (2001,2,1)
+    val weekOfYearUDF = sparkSession.udf.register(name= "weekOfYear", weekOfYear)
 
     val aiportsWithNFlights = flightsDF.map(flightRow => {
       val source = flightRow.getAs[String](src)
