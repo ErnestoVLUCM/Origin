@@ -31,43 +31,33 @@ object GraphFramesExample {
     println("vamos a crear el grafo!")
     val graph:GraphFrame = createGraph(flights).cache()
 
-        println("Number of aiports")
-        println(getNumOfAiports(graph))
+    println("Number of aiports")
+    println(getNumOfAiports(graph))
 
-        println("Number of flights")
-        println(getNumOfFlights(graph))
+    println("Number of flights")
+    println(getNumOfFlights(graph))
 
-        println("aiports")
-        println(getAiports(graph))
+    println("aiports")
+    println(getAiports(graph))
 
-        println("In degree sorted vertex")
-        getInDegreeSorted(graph)
+    println("In degree sorted vertex")
+    getInDegreeSorted(graph)
 
-                println("Out degree sorted vertex")
-        getOutDegreeSorted(graph)
+    println("Out degree sorted vertex")
+    getOutDegreeSorted(graph)
 
-        println("Degree ratio sorted")
-        getRatioDegreeSorted(graph)
+    println("Degree ratio sorted")
+    getRatioDegreeSorted(graph)
 
-        println("Label propagation")
-            getLabelPropagation(graph)
+    println("Label propagation")
+    getLabelPropagation(graph)
 
-            println("Strongly connected components")
+    println("Strongly connected components")
     getStronglyConnectedComponents(graph)
 
 
     println("Flights whit more than 500 miles")
-    getFilteredVertex(graph, (x: Int) => x>500, distance, true)
-
-
-    //val triplets = graph.triplets
-
-//    val shortest = graph.shortestPaths.landmarks(Seq("a", "d")).run()
-//    shortest.select("id", "distances").limit(5).show()
-
-
-
-
+    getFilteredVertex(graph, (x: Int) => x>500, distance, sample = true)
 
     val triangles = getMinDistTriangles(graph)
       triangles.show()
@@ -78,8 +68,6 @@ object GraphFramesExample {
     val triangles = graph.find("(a)-[ab]->(b); (b)-[bc]->(c); (c)-[ca]->(a)")
     triangles.select("*").where("a.id != b.id").where("b.id != c.id")
       .where("ab.date < bc.date").where("bc.date < ca.date")
-    //      .orderBy("ab.distance + bc.distance + ca.distance")
-    //      .orderBy(exp("ab.distance + bc.distance + ca.distance"))
   }
 
   def getStronglyConnectedComponents(graph: GraphFrame, maxIter: Int = 5, ascending: Boolean = false, sample: Boolean = true): Dataset[Row] = {

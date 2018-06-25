@@ -33,23 +33,18 @@ object flightsRDD {
     getTopNflights(flightsDF, 5).foreach(println(_))
 
     println("aeropuerto con menor media de salidas por mes")
-    //println(getAiportWithMmaximusAvgDestByMonth(flightsDF).collect().foreach(println(_)))
-    //println(getAiportWithMinimusAvgSourceByMonth(flightsDF).collect().foreach(println(_)))
+    println(getAiportWithMmaximusAvgDestByMonth(flightsDF).collect().foreach(println(_)))
+    println(getAiportWithMinimusAvgSourceByMonth(flightsDF).collect().foreach(println(_)))
 
     println("aeropuerto con menor distancia por mes")
-    //println(getAiportWithMinimusDistanceByMonth(flightsDF).collect().foreach(println(_)))
+    println(getAiportWithMinimusDistanceByMonth(flightsDF).collect().foreach(println(_)))
 
     println("vuelos por mes")
-    //println(getFlightsByMonth(flightsDF).collect().foreach(println(_)))
+    println(getFlightsByMonth(flightsDF).collect().foreach(println(_)))
 
     println("Ruta que mas veces se ha repetido 3 veces en la misma semana")
-//    println(getMaxNFlightsInAWeek(flightsDF,3))
-//    println(getMinNFlightsInAWeek(flightsDF,3))
-
-
-//    println("progresion mesnual")
-//    println(getMonthlyProgression(flightsDF).take(3).foreach(println(_)))
-
+    println(getMaxNFlightsInAWeek(flightsDF,3))
+    println(getMinNFlightsInAWeek(flightsDF,3))
   }
 
 
@@ -181,30 +176,7 @@ object flightsRDD {
 
     if (max) getMax(countAiportsWithNFlights) else getMin(countAiportsWithNFlights)
 
-
   }
-/*  def getMonthlyProgression[T](flightsDF: DataFrame): RDD[(String, (Int, Int))] = {
-    val sqlContext = flightsDF.sqlContext
-    import sqlContext.implicits._
-    val fMonthKey = flightsDF.flatMap(flightRow => {
-      val origin = flightRow.getAs[String](src)
-      val dest = flightRow.getAs[String](dst)
-      val month = flightRow.getAs[Int](date_month)
-      val distance = flightRow.getAs[Int](miles)
-      Seq(((dest, month), 1), ((origin, month), 1))})
-    val fAiportMonthKeySum = fMonthKey.rdd.reduceByKey(_+_)
-    val fAiportKeyMonthSum = fAiportMonthKeySum.map{case((aeropuerto, mes), cont) => (aeropuerto, (mes, cont))}.groupByKey()
-//    val fAiportKeyMonthSumOrderByMonths = fAiportKeyMonthSum.reduceByKey{case (month1, valuee1), (month2,value2) => if (month1 < value2) valuee1 else value2}//mapValues(x => x.toList.sortBy(_._1))
-    val fAiportKeyMonthSumOrderByMonth = fAiportKeyMonthSum.flatMapValues(x => x.toList.sortBy(_._1)).groupByKey()
-    println(fAiportKeyMonthSum.first)
-
-
-    //fAiportKeyMonthSumOrderByMonth.reduceByKey((current, next) => (current._1, current._2 - next._2)).groupByKey()
-
-
-    fAiportKeyMonthSumOrderByMonth
-//    fAiportKeyMonthSumOrderByMonth
-  }*/
 
 
 }
