@@ -19,21 +19,24 @@ object flightsRDD {
       .config("spark.master", "local")
       .getOrCreate()
 
-  def main(args:Array[String]) = {
+  def main(args:Array[String]): Unit = {
     sparkSession.sparkContext.setLogLevel("ERROR")
 
 
-    val flightsDF = sparkSession.read.format("csv").option("path", "/home/evl/Escritorio/TFG/dataexpo_routes/2001.csv")
+    val path =  "/home/evl/Escritorio/TFG/dataexpo_routes/2007.csv"
+    val flightsDF = sparkSession.read.format("csv").option("path", path)
       .option("header", "true").option("inferSchema", "true").load.cache()
 
 
 
-    println("hola")
+    println("Empezamos!")
     println("Las 5 rutas más repetidas son:")
     getTopNflights(flightsDF, 5).foreach(println(_))
 
-    println("aeropuerto con menor media de salidas por mes")
+    println("aeropuerto con mayor media de salidas por mes")
     println(getAiportWithMmaximusAvgDestByMonth(flightsDF).collect().foreach(println(_)))
+
+    println("aeropuerto con menor media de salidas por mes")
     println(getAiportWithMinimusAvgSourceByMonth(flightsDF).collect().foreach(println(_)))
 
     println("aeropuerto con menor distancia por mes")
@@ -44,12 +47,16 @@ object flightsRDD {
 
     println("Ruta que mas veces se ha repetido 3 veces en la misma semana")
     println(getMaxNFlightsInAWeek(flightsDF,3))
+
+    println("Ruta que menos veces se ha repetido 3 veces en la misma semana")
     println(getMinNFlightsInAWeek(flightsDF,3))
   }
 
 
 
-
+  /**
+    * Return the n routes more recurrent.
+    */
   def getTopNflights(flightsDF: DataFrame, n: Int): Array[((String, String), Int)] = {
     val sqlContext = flightsDF.sqlContext
     import sqlContext.implicits._
@@ -159,8 +166,8 @@ object flightsRDD {
 
     val sqlContext = flightsDF.sqlContext
     import sqlContext.implicits._
-    val weekOfYear = (year:Int, month:Int, day:Int) => new DateTime().year.setCopy(year).monthOfYear.setCopy(month).dayOfMonth.setCopy(day).weekOfWeekyear.get
-    val weekOfYearUDF = sparkSession.udf.register(name= "weekOfYear", weekOfYear)
+    val weekOfYear = (year:Int, month:Int, day:Int) => new DateTime().year.setCopy(year).monthOfYear.setCopy(month)
+      .dayOfMonth.setCopy(day).weekOfWeekyear.get
 
     val aiportsWithNFlights = flightsDF.map(flightRow => {
       val source = flightRow.getAs[String](src)
@@ -171,8 +178,11 @@ object flightsRDD {
       val date = weekOfYear(year, month, dayOfMonth)
       ((source, dest, date), 1)}).rdd.reduceByKey(_+_).filter(_._2 == n)
 
+    println("in function")
     println(aiportsWithNFlights.take(6).foreach(println(_)))
-    val countAiportsWithNFlights = aiportsWithNFlights.map{case ((source, dest, _), _) => ((source, dest), 1)}.reduceByKey(_+_)
+    println("out")
+    val countAiportsWithNFlights = aiportsWithNFlights.map{case ((source, dest, _), _) =>
+      ((source, dest), 1)}.reduceByKey(_+_)
 
     if (max) getMax(countAiportsWithNFlights) else getMin(countAiportsWithNFlights)
 

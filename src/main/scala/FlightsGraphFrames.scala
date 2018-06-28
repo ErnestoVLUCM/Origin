@@ -1,9 +1,8 @@
 import org.apache.spark.sql._
-import org.apache.spark.sql.functions._
 import org.graphframes._
 import org.joda.time.DateTime
 
-object GraphFramesExample {
+object FlightsGraphFrames {
   private val src = "src"
   private val dst = "dst"
   private val month = "month"
@@ -25,7 +24,9 @@ object GraphFramesExample {
 
 
     println("Empezamos!")
-    val flights = sparkSession.read.format("csv").option("path", "/home/evl/Escritorio/TFG/dataexpo_routes/test.csv").option("header", "true").option("inferSchema", "true").load
+    val path =  "/home/evl/Escritorio/TFG/dataexpo_routes/test.csv"
+    val flights = sparkSession.read.format("csv").
+      option("path", path).option("header", "true").option("inferSchema", "true").load
 
 
     println("vamos a crear el grafo!")
