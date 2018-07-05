@@ -46,5 +46,6 @@ object WordCount {
   def wordCount(rDD: RDD[String], key: String): Long = {
     val words = rDD.flatMap(_.split(" "))
     words.map(_.toLowerCase().replaceAll("\\P{L1}","")).filter(_ == key.toLowerCase).count()
+    words.map(_.toLowerCase().replaceAll("\\P{L}","")).filter(_ == key.toLowerCase).count()
   }
 }
