@@ -3,12 +3,14 @@ import org.graphframes._
 import org.joda.time.DateTime
 
 object FlightsGraphFrames {
+  private val origin = "Origin"
+  private val dest = "Dest"
   private val src = "src"
   private val dst = "dst"
-  private val month = "month"
-  private val dayOfMonth = "dayOfMonth"
-  private val dayOfWeek = "dayOfWeek"
-  private val distance = "distance"
+  val date_year = "Year"
+  val date_month = "Month"
+  private val date_day_of_week = "DayOfWeek"
+  private val miles = "Distance"
   private val date = "date"
 
   @transient lazy val sparkSession: SparkSession =
@@ -58,20 +60,48 @@ object FlightsGraphFrames {
 
 
     println("Flights whit more than 500 miles")
-    getFilteredVertex(graph, (x: Int) => x>500, distance, sample = true)
+    getFilteredVertex(graph, (x: Int) => x>500, miles, sample = true)
 
     val triangles = getMinDistTriangles(graph)
       triangles.show()
 
   }
 
+  /**
+  Returns Dataset of triangles in the graph.
+    */
   def getMinDistTriangles(graph: GraphFrame): Dataset[Row] = {
     val triangles = graph.find("(a)-[ab]->(b); (b)-[bc]->(c); (c)-[ca]->(a)")
     triangles.select("*").where("a.id != b.id").where("b.id != c.id")
       .where("ab.date < bc.date").where("bc.date < ca.date")
   }
 
-  def getStronglyConnectedComponents(graph: GraphFrame, maxIter: Int = 5, ascending: Boolean = false, sample: Boolean = true): Dataset[Row] = {
+  /**
+  Returns a dataset of aiports and column "rank" from computes the PageRank of aiports from an input graph
+    */
+  def getPageRankSorted(graph: GraphFrame, resetProbability: Double = 0.15,
+                        ascending: Boolean = false, sample: Boolean = true):  Dataset[Row]={
+
+    val ranks = graph.pageRank.resetProbability(resetProbability).maxIter(10).run()
+
+    if (ascending) {
+      val output = ranks.vertices.orderBy($"pagerank".asc).select("id", "pagerank")
+      if (sample) output.limit(5).show()
+      output
+    }
+    else {
+      val output = ranks.vertices.orderBy($"pagerank".desc).select("id", "pagerank")
+      if (sample) output.limit(5).show()
+      output
+    }
+  }
+
+  /**
+  Returns a dataset of aiports and column "component" from computes the
+  stronglyConnectedComponents of aiports from an input graph
+    */
+  def getStronglyConnectedComponents(graph: GraphFrame, maxIter: Int = 5,
+                                     ascending: Boolean = false, sample: Boolean = true): Dataset[Row] = {
     val scc =graph.stronglyConnectedComponents.maxIter(maxIter).run()
     if (ascending) {
       val output = scc.orderBy($"component".asc)
@@ -84,6 +114,11 @@ object FlightsGraphFrames {
       output
     }
   }
+
+  /**
+  Returns a dataset of aiports and column "label" from computes the
+  labelPropagation of aiports from an input graph
+    */
   def getLabelPropagation(graph: GraphFrame, ascending: Boolean = false, sample: Boolean = true): Dataset[Row] = {
     val lp = graph.labelPropagation.maxIter(5).run()
     if (ascending) {
@@ -98,6 +133,9 @@ object FlightsGraphFrames {
     }
   }
 
+  /**
+  Returns Dataset of aiports and number of landings from the airport.
+    */
   def getInDegreeSorted(graph: GraphFrame, sorted: Boolean = true, sample: Boolean = true): Dataset[Row] = {
     val inD =
       if (sorted) graph.inDegrees.sort($"inDegree".desc)
@@ -106,6 +144,10 @@ object FlightsGraphFrames {
     if (sample) inD.limit(5).show
     inD
   }
+
+  /**
+  Returns Dataset of aiports and number of takeoffs from the airport.
+    */
   def getOutDegreeSorted(graph: GraphFrame, sorted: Boolean = true, sample: Boolean = true): Dataset[Row] = {
     val outD =
       if (sorted) {graph.outDegrees.sort($"outDegree".desc)}
@@ -115,6 +157,9 @@ object FlightsGraphFrames {
     outD
   }
 
+  /**
+  Returns quotient inDegree between outDegree of aiports sorted by quotient.
+    */
   def getRatioDegreeSorted(graph: GraphFrame,ascending: Boolean = false, sample: Boolean = true): Dataset[Row] = {
     val inD = getInDegreeSorted(graph, sorted = false, sample = false)
     val outD = getOutDegreeSorted(graph, sorted = false, sample = false)
@@ -135,55 +180,63 @@ object FlightsGraphFrames {
       output
     }
   }
-  def getFilteredVertex[T](g: GraphFrame, condition: T => Boolean, col: String, sample: Boolean = false): Dataset[Row] = {
+
+  /**
+  Returns Dataset of edges filtered by imput condition.
+    */
+  def getFilteredVertex[T](g: GraphFrame, condition: T => Boolean,
+                           col: String, sample: Boolean = false): Dataset[Row] = {
     val filtered = g.edges.filter(row => condition(row.getAs(col)))
 
     if (sample) filtered.limit(2).show()
     filtered
   }
 
-
-
-
-  def createGraph(flightsDS: DataFrame): GraphFrame = {
-
-    val dayOfYear = (year:Int, month:Int, day:Int) => new DateTime().year.setCopy(year).monthOfYear.setCopy(month).dayOfMonth.setCopy(day).dayOfYear().get
-    val fFiltered = flightsDS.map(flightRow => {
-      val dst = flightRow.getAs[String]("Dest")
-      val distance = flightRow.getAs[Int]("Distance")
-      val src = flightRow.getAs[String]("Origin")
-      val year = flightRow.getAs[Int]("Year")
-      val month = flightRow.getAs[Int]("Month")
-      val dayOfWeek = flightRow.getAs[Int]("DayOfWeek")
-      val date = dayOfYear(year, month, dayOfWeek)
-      (src, dst, date, distance)})
-
-
-
-    val colNames = Seq(src, dst, date, distance)
-    val aiports = fFiltered.rdd.flatMap{case (source, dest, _,_) => Seq(source, dest)}.distinct()
-    val edg = fFiltered.toDF(colNames: _*)
-    val vertexID = aiports.distinct().toDF("id")
-
-
-    println("vertices")
-    vertexID.printSchema()
-    println("esquema de las aristas")
-    edg.printSchema()
-    GraphFrame(vertexID, edg)
-  }
-
-
+  /**
+  Returns the number of aiports.
+    */
   def getNumOfAiports(graph: GraphFrame): Long ={
     graph.vertices.count()
   }
+
+  /**
+  Returns the number of flights.
+    */
   def getNumOfFlights(graph: GraphFrame): Long ={
     graph.edges.count()
   }
 
-  def getAiports(graph: GraphFrame): String ={
-    graph.vertices.columns.toString
+  /**
+  Returns the aiports.
+    */
+  def getAiports(graph: GraphFrame)={
+    graph.vertices.collectAsList()
   }
 
+  /**
+  Returns a graph whose vertices are airports and edges are flights between airports,
+  with their distance traveled and date expressed on the day of the year.
+    */
+  def createGraph(flightsDF: DataFrame): GraphFrame = {
+
+    val dayOfYear = (year:Int, month:Int, day:Int) =>
+      new DateTime().year.setCopy(year).monthOfYear.setCopy(month).dayOfMonth.setCopy(day).dayOfYear().get
+
+    val flightsDS = flightsDF.map(flightRow => {
+      val source = flightRow.getAs[String](origin)
+      val destination = flightRow.getAs[String](dest)
+      val distance = flightRow.getAs[Int](miles)
+      val year = flightRow.getAs[Int](date_year)
+      val month = flightRow.getAs[Int](date_month)
+      val dayOfWeek = flightRow.getAs[Int](date_day_of_week)
+      (source, destination, date, distance)})
+
+    val colNames = Seq(src, dst, date, miles)
+    val aiports = flightsDS.rdd.flatMap{case (source, destination, _,_) => Seq(source, destination)}.distinct()
+    val edg = flightsDS.toDF(colNames: _*)
+    val vertexID = aiports.distinct().toDF("id")
+
+    GraphFrame(vertexID, edg)
+  }
 }
 
