@@ -26,44 +26,45 @@ object FlightsGraphFrames {
 
 
     println("Empezamos!")
-    val path =  "/home/evl/Escritorio/TFG/dataexpo_routes/test.csv"
+    val path =  "~/data/graphFramesFlights.csv"
     val flights = sparkSession.read.format("csv").
       option("path", path).option("header", "true").option("inferSchema", "true").load
 
 
-    println("vamos a crear el grafo!")
+    println("Vamos a crear el grafo!")
     val graph:GraphFrame = createGraph(flights).cache()
 
-    println("Number of aiports")
+    println("Cantidad de aeropuertos:")
     println(getNumOfAiports(graph))
 
-    println("Number of flights")
+    println("Cantidad de vuelos:")
     println(getNumOfFlights(graph))
 
-    println("aiports")
+    println("Aeropuertos:")
     println(getAiports(graph))
 
-    println("In degree sorted vertex")
+    println("Aeropuertos ordenados en función de los vuelos que han aterrizado en ellos:")
     getInDegreeSorted(graph)
 
-    println("Out degree sorted vertex")
+    println("Aeropuertos ordenados en función de los vuelos que han despegado en ellos:")
     getOutDegreeSorted(graph)
 
-    println("Degree ratio sorted")
+    println("Aeropuertos ordenados en función del ratio de vuelos aterrizados y despegados:")
     getRatioDegreeSorted(graph)
 
-    println("Label propagation")
+    println("Label propagation:")
     getLabelPropagation(graph)
 
-    println("Strongly connected components")
+    println("Componentes fuertemente conexas:")
     getStronglyConnectedComponents(graph)
 
 
-    println("Flights whit more than 500 miles")
+    println("Vuelos que han recorrido más de 500 millas:")
     getFilteredVertex(graph, (x: Int) => x>500, miles, sample = true)
 
+    println("Rutas que forman un triangulo")
     val triangles = getMinDistTriangles(graph)
-      triangles.show()
+      triangles.show(5)
 
   }
 

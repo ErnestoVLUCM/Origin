@@ -5,8 +5,8 @@ import org.apache.spark.sql.DataFrame
 import org.joda.time.DateTime
 
 object flightsRDD {
-  private val src = "Origin"
-  private val dst = "Dest"
+  private val origin = "Origin"
+  private val dest = "Dest"
   private val date_month = "Month"
   private val date_day_of_month = "DayofMonth"
   private val date_year = "Year"
@@ -23,35 +23,36 @@ object flightsRDD {
     sparkSession.sparkContext.setLogLevel("ERROR")
 
 
-    val path =  "/home/evl/Escritorio/TFG/dataexpo_routes/2007.csv"
+    val path =  "~/data/2001.csv"
     val flightsDF = sparkSession.read.format("csv").option("path", path)
       .option("header", "true").option("inferSchema", "true").load.cache()
 
-
-
     println("Empezamos!")
+
     println("Las 5 rutas más repetidas son:")
     getTopNflights(flightsDF, 5).foreach(println(_))
 
-    println("aeropuerto con mayor media de salidas por mes")
-    println(getAiportWithMmaximusAvgDestByMonth(flightsDF).collect().foreach(println(_)))
+    println("aeropuerto con mayor media de salidas por mes:")
+    getAiportsWithMaximusAvgSourceByMonth(flightsDF).collect().foreach(println(_))
 
-    println("aeropuerto con menor media de salidas por mes")
-    println(getAiportWithMinimusAvgSourceByMonth(flightsDF).collect().foreach(println(_)))
+    println("Aeropuerto con menor media de salidas por mes:")
+    getAiportsWithMinimusAvgSourceByMonth(flightsDF).collect().foreach(println(_))
 
-    println("aeropuerto con menor distancia por mes")
-    println(getAiportWithMinimusDistanceByMonth(flightsDF).collect().foreach(println(_)))
+    println("Aeropuerto con menor distancia por mes:")
+    getAiportWithMinimusDistanceByMonth(flightsDF).collect().foreach(println(_))
 
-    println("vuelos por mes")
-    println(getFlightsByMonth(flightsDF).collect().foreach(println(_)))
+    println("vuelos por mes:")
+    getFlightsByMonth(flightsDF).collect().foreach(println(_))
 
-    println("Ruta que mas veces se ha repetido 3 veces en la misma semana")
+    println("Cantidad mensual de vuelos por aeropuerto:")
+    getMonthlyProgression(flightsDF).take(5).foreach(println(_))
+
+    println("Ruta que mas veces se ha repetido 3 veces en la misma semana:")
     println(getMaxNFlightsInAWeek(flightsDF,3))
 
-    println("Ruta que menos veces se ha repetido 3 veces en la misma semana")
-    println(getMinNFlightsInAWeek(flightsDF,3))
+    println("Ruta que menos veces se ha repetido 3 veces en la misma semana:")
+    println(getMinNFlightsInAWeek(flightsDF,2))
   }
-
 
 
   /**
@@ -61,28 +62,44 @@ object flightsRDD {
     val sqlContext = flightsDF.sqlContext
     import sqlContext.implicits._
     flightsDF.map(flightRow => {
-      val origin = flightRow.getAs[String](src)
-      val dest = flightRow.getAs[String](dst)
-      ((origin, dest), 1)
+      val source = flightRow.getAs[String](origin)
+      val destination = flightRow.getAs[String](dest)
+      ((source, destination), 1)
     }).rdd.reduceByKey(_ + _).sortBy(_._2, ascending = false).take(n)
   }
 
-  def getAiportWithMinimusAvgDestByMonth(flightsDF: DataFrame): RDD[(Int,(String,Double))] = {
-    getAiportWithMaximunOrMinimunAvgDestByMonth(flightsDF, maximun = false, dst).sortByKey()
+  /**
+    * Returns for each month the airport with the lowest average of flights that have landed on it.
+    */
+  def getAiportsWithMinimusAvgDestByMonth(flightsDF: DataFrame): RDD[(Int,(String,Double))] = {
+    getAiportsWithMaximunOrMinimunAvgDestOrSourceByMonth(flightsDF, maximun = false, dest).sortByKey()
   }
-  def getAiportWithMmaximusAvgDestByMonth(flightsDF: DataFrame): RDD[(Int,(String,Double))] = {
-    getAiportWithMaximunOrMinimunAvgDestByMonth(flightsDF, sourceOrDest = dst).sortByKey()
+
+  /**
+  Returns for each month the airport with the lowest average of flights that have taken off from it.
+    */
+  def getAiportsWithMaximusAvgDestByMonth(flightsDF: DataFrame): RDD[(Int,(String,Double))] = {
+    getAiportsWithMaximunOrMinimunAvgDestOrSourceByMonth(flightsDF, sourceOrDest = dest).sortByKey()
   }
 
 
-  def getAiportWithMinimusAvgSourceByMonth(flightsDF: DataFrame): RDD[(Int,(String,Double))] = {
-    getAiportWithMaximunOrMinimunAvgDestByMonth(flightsDF, maximun = false, src).sortByKey()
-  }
-  def getAiportWithMmaximusAvgSourceByMonth(flightsDF: DataFrame): RDD[(Int,(String,Double))] = {
-    getAiportWithMaximunOrMinimunAvgDestByMonth(flightsDF, sourceOrDest =  src).sortByKey()
+  /**
+  Returns for each month the airport with the highest average of flights that have landed on it.
+   */
+  def getAiportsWithMinimusAvgSourceByMonth(flightsDF: DataFrame): RDD[(Int,(String,Double))] = {
+    getAiportsWithMaximunOrMinimunAvgDestOrSourceByMonth(flightsDF, maximun = false, origin).sortByKey()
   }
 
-  def getAiportWithMaximunOrMinimunAvgDestByMonth(flightsDF: DataFrame, maximun: Boolean = true, sourceOrDest: String): RDD[(Int,(String,Double))] = {
+  /**
+  Returns for each month the airport with the highest average of flights that have taken off from it.
+    */
+  def getAiportsWithMaximusAvgSourceByMonth(flightsDF: DataFrame): RDD[(Int,(String,Double))] = {
+    getAiportsWithMaximunOrMinimunAvgDestOrSourceByMonth(flightsDF, sourceOrDest =  origin).sortByKey()
+  }
+
+  def getAiportsWithMaximunOrMinimunAvgDestOrSourceByMonth
+    (flightsDF: DataFrame, maximun: Boolean = true, sourceOrDest: String): RDD[(Int,(String,Double))] = {
+
     def reduceByKeyMin(rdd: RDD[(Int, (String,Double))]): RDD[(Int, (String,Double))] ={
       rdd.reduceByKey((current, next) =>
         if (current._2 < next._2) current
@@ -97,17 +114,17 @@ object flightsRDD {
     import sqlC.implicits._
 
     val fMonthKeySuma = flightsDF.map(flightRow =>
-      ((flightRow.getAs[Int](date_month),
-        flightRow.getAs[String](sourceOrDest)), 1)).rdd.reduceByKey(_+_).cache()
+      ((flightRow.getAs[Int](date_month), flightRow.getAs[String](sourceOrDest)),
+        1)).rdd.reduceByKey(_+_).cache()
 
-    val fMonthSuma = fMonthKeySuma.map{case((mes, _), cont) =>
-      (mes,cont)}.reduceByKey(_+_) //[month, count]
+    val fMonthSuma = fMonthKeySuma.map{case((month, _), count) =>
+      (month,count)}.reduceByKey(_+_)
 
-     val fMonthMesVuelos = fMonthKeySuma.map{case((mes, aeropuerto), cont) =>
-      (mes, (aeropuerto, cont))} //[month, (aiportDest, count)]
+     val fMonthFligths = fMonthKeySuma.map{case((month, airport), count) =>
+      (month, (airport, count))}
 
     fMonthKeySuma.unpersist()
-    val fmonthJoin = fMonthMesVuelos.join(fMonthSuma)
+    val fmonthJoin = fMonthFligths.join(fMonthSuma)
 
     val fmonthMedia = fmonthJoin.mapValues{case ((airport, airportCounter), monthCounter) =>
       (airport, (monthCounter/airportCounter).toDouble)}
@@ -119,29 +136,52 @@ object flightsRDD {
     }
   }
 
-
+  /**
+  Returns for each month the airport with the lowest distance traveled by
+  the flights that have landed and taken off from it.
+    */
   def getAiportWithMinimusDistanceByMonth(flightsDF: DataFrame): RDD[(Int,(String,Int))] = {
 
-    //[(Mes,Aeropuerto),| Distancia] -> [(Mes, Aeropuerto),| SumatorioDistancias] -> [Mes,| (Aeropuerto, SumatorioDistancias] ->
-    // -> cogemos el aeropuerto con menor distancia recorrida [Mes,| (MinAero, MinSumDis]
+
     val sqlContext = flightsDF.sqlContext
     import sqlContext.implicits._
     val fMonthKey = flightsDF.flatMap(flightRow => {
       val month = flightRow.getAs[Int](date_month)
-      val origin = flightRow.getAs[String](src)
-      val dest = flightRow.getAs[String](dst)
+      val source = flightRow.getAs[String](origin)
+      val destination = flightRow.getAs[String](dest)
       val distance = flightRow.getAs[Int](miles)
-      Seq(((month, dest), distance), ((month, origin), distance))})
+      Seq(((month, destination), distance), ((month, source), distance))})
 
-    val monthKeySuma = fMonthKey.rdd.reduceByKey((cont1,cont2) => cont1+cont2)
+    val monthKeySum = fMonthKey.rdd.reduceByKey((count1,count2) => count1+count2)
 
-    val fMonth = monthKeySuma.map{case((mes, aeropuerto), cont) => (mes,(aeropuerto, cont))}
+    val fMonth = monthKeySum.map{case((month, airport), count) => (month,(airport, count))}
 
-    val fmin = fMonth.reduceByKey((airportDistancias1, airportDistancias2) => if (airportDistancias1._2 < airportDistancias2._2) airportDistancias1 else airportDistancias2)
+    val fmin = fMonth.reduceByKey((current, next) => if (current._2 < next._2) current else next)
 
     fmin.sortByKey()
   }
 
+  /**
+  Returns the number of flights that have landed and taken off per month at each airport.
+    */
+  def getMonthlyProgression[T](flightsDF: DataFrame): RDD[(String, List[(Int, Int)])] = {
+    val sqlContext = flightsDF.sqlContext
+    import sqlContext.implicits._
+
+    val fMonthKey = flightsDF.flatMap(flightRow => {
+      val source = flightRow.getAs[String](origin)
+      val destination = flightRow.getAs[String](dest)
+      val month = flightRow.getAs[Int](date_month)
+      Seq(((destination, month), 1), ((source, month), 1))})
+
+    val fAiportMonthKeySum = fMonthKey.rdd.reduceByKey(_+_)
+    fAiportMonthKeySum.map{case((aeropuerto, mes), cont) => (aeropuerto, (mes, cont))}
+      .groupByKey().mapValues(_.toList.sortBy(_._1))
+  }
+
+  /**
+  Returns the number of flights for each month.
+    */
   def getFlightsByMonth(flightsDS: DataFrame): RDD[(Int, Int)] = {
     val sqlContext = flightsDS.sqlContext
     import sqlContext.implicits._
@@ -157,6 +197,7 @@ object flightsRDD {
   }
 
   def getAiportNFlightsInAWeek(flightsDF: DataFrame, n: Int, max: Boolean = true): ((String, String), Int) = {
+
     def getMax(rDD: RDD[((String, String), Int)]): ((String, String), Int) = {
       rDD.sortByKey(ascending = false).first()
     }
@@ -170,22 +211,18 @@ object flightsRDD {
       .dayOfMonth.setCopy(day).weekOfWeekyear.get
 
     val aiportsWithNFlights = flightsDF.map(flightRow => {
-      val source = flightRow.getAs[String](src)
-      val dest = flightRow.getAs[String](dst)
+      val source = flightRow.getAs[String](origin)
+      val destination = flightRow.getAs[String](dest)
       val year = flightRow.getAs[Int](date_year)
       val month = flightRow.getAs[Int](date_month)
       val dayOfMonth = flightRow.getAs[Int](date_day_of_month)
       val date = weekOfYear(year, month, dayOfMonth)
-      ((source, dest, date), 1)}).rdd.reduceByKey(_+_).filter(_._2 == n)
+      ((source, destination, date), 1)}).rdd.reduceByKey(_+_).filter(_._2 == n)
 
-    println("in function")
-    println(aiportsWithNFlights.take(6).foreach(println(_)))
-    println("out")
     val countAiportsWithNFlights = aiportsWithNFlights.map{case ((source, dest, _), _) =>
       ((source, dest), 1)}.reduceByKey(_+_)
 
     if (max) getMax(countAiportsWithNFlights) else getMin(countAiportsWithNFlights)
-
   }
 
 

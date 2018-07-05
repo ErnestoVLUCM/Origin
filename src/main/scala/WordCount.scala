@@ -14,7 +14,7 @@ object WordCount {
     val sc = sparkSession.sparkContext
     sc.setLogLevel("ERROR")
 
-    val path = "/home/evl/Escritorio/flights/data/Quijote.txt"
+    val path = "~/data/Quijote.txt"
     val quijote: RDD[String] = sc.textFile(path)
 
 
